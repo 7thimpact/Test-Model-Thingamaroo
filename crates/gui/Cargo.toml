@@ -1,0 +1,29 @@
+[package]
+name = "thingamaroo-gui"
+description = "Desktop front end for the byte-level continual-learning language model."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "thingamaroo-gui"
+path = "src/main.rs"
+
+[features]
+default = ["fast-allocator"]
+# Replaces the system allocator with mimalloc, which roughly doubles CPU
+# training speed. Needs a C compiler at build time; disable it if none is available.
+fast-allocator = ["dep:mimalloc"]
+gpu = ["thingamaroo-core/gpu"]
+cuda = ["thingamaroo-core/cuda"]
+
+[dependencies]
+thingamaroo-core.workspace = true
+eframe = { version = "0.37", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "wgpu", "x11"] }
+egui = "0.37"
+egui_plot = "0.38"
+rfd = "0.18"
+serde_json.workspace = true
+mimalloc = { version = "0.1", optional = true }
