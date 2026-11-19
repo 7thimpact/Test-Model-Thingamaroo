@@ -5,7 +5,7 @@ command-line application can do: both are thin front ends over the same core
 library, and each tab below names the commands it covers.
 
 ```
-thingamaroo-gui [--brain <DIRECTORY>] [--device <auto|cpu|gpu|cuda>] [--renderer <wgpu|glow>]
+thingamaroo-gui [--brain <DIRECTORY>] [--device <auto|cpu|libtorch|gpu|cuda>] [--renderer <wgpu|glow>]
 ```
 
 | Option | Meaning |
@@ -237,12 +237,17 @@ libraries; on a minimal installation the one most often missing is
 portal service (`xdg-desktop-portal`). Without it, type or paste the path
 instead; every path field accepts typing.
 
-**gpu or cuda is missing from the device list.** The application was built
-without that feature. See [Building](../README.md#building).
+**libtorch, gpu or cuda is missing from the device list.** The application was
+built without that feature (`libtorch` is missing from a pure-Rust build). See [Building](../README.md#building).
 
 **"episodic memory store: ... already open".** The brain is open in another
 application (for example a `thingamaroo chat` session). A brain can be used by
 one application at a time; close the other one and press *Open* again.
 
-**Everything is slow.** The `cpu` device is meant for the `tiny` size and for
-trying things out. Larger sizes need a build with `--features gpu` or `cuda`.
+**Everything is slow.** The processor devices (`libtorch`, and `cpu`, which is
+about half as fast) are meant for the `tiny` size and for trying things out.
+Larger sizes need a build with `--features gpu` or `cuda`.
+
+**The application does not start: `libtorch_cpu.so` (or a LibTorch `.dll`) is
+missing.** LibTorch was moved or deleted since the build, or, on Windows, its
+`lib` folder is not on `PATH`. See [Building](../README.md#libtorch-on-by-default).

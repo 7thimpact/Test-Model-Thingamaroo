@@ -307,6 +307,9 @@ Verified by the test suite or by hand while building this:
   remains with the fast weights reset and memory retrieval switched off, while
   answers to other questions are unchanged.
 - Raising `sleep.elastic_strength` reduces the rise in old-data loss during sleep.
+- The `libtorch` and `cpu` backends give identical losses to three decimals
+  over 150 training steps from the same seed; `libtorch` is 2.2× faster for
+  `tiny` and 2.6× faster for `prototype` on four cores.
 
 Not verified:
 
@@ -315,6 +318,9 @@ Not verified:
   and schedules are untuned.
 - The `gpu` build compiles, but no graphics card was available to run it.
   `cuda` was not built.
+- The LibTorch default was built and run on Linux only, with LibTorch supplied
+  through `LIBTORCH`; its automatic download and the Windows `PATH` setup were
+  not tried.
 - Only Linux was tested. The dependencies are cross-platform, but Windows and
   macOS builds were not tried.
 - Real English beyond the generated sample text. The sample grammar is far

@@ -13,6 +13,9 @@ default = []
 gpu = ["burn/wgpu"]
 # NVIDIA CUDA compute. Requires the CUDA toolkit at build time.
 cuda = ["burn/cuda"]
+# The processor through LibTorch, PyTorch's C++ engine: about twice as fast as
+# the pure-Rust backend. Downloads LibTorch at build time unless LIBTORCH is set.
+libtorch = ["burn/tch", "dep:torch-sys"]
 
 [dependencies]
 burn.workspace = true
@@ -21,6 +24,8 @@ redb.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+# Not used in code: depending on it directly lets build.rs learn where LibTorch is.
+torch-sys = { version = "0.22", optional = true }
 
 [dev-dependencies]
 burn.workspace = true

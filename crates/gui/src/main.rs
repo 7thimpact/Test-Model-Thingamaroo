@@ -29,7 +29,7 @@ const INITIAL_WINDOW_SIZE: [f32; 2] = [1120.0, 780.0];
 const MINIMUM_WINDOW_SIZE: [f32; 2] = [760.0, 520.0];
 
 const USAGE: &str = "\
-Usage: thingamaroo-gui [--brain <DIRECTORY>] [--device <auto|cpu|gpu|cuda>] [--renderer <wgpu|glow>]
+Usage: thingamaroo-gui [--brain <DIRECTORY>] [--device <auto|cpu|libtorch|gpu|cuda>] [--renderer <wgpu|glow>]
 
   --brain     open this brain as soon as the window appears
   --device    compute backend used for that brain (default: auto)

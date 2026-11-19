@@ -41,7 +41,7 @@ let it sleep, and see the correction survive.
    memories and fast weights, and permanently through sleep.
 
 Tried on the smallest size (1.3M parameters, trained for 14 minutes on four
-CPU cores on the built-in sample text):
+CPU cores with the pure-Rust backend on the built-in sample text):
 
 ```
 you> What does the cat say?
@@ -65,9 +65,11 @@ and "The owl eats mice."
 You need:
 
 - **Rust 1.95 or newer** (install from <https://rustup.rs>).
-- **A C compiler**, for the bundled memory allocator. Linux and macOS have one
-  once the usual build tools are installed; on Windows the MSVC build tools
-  that Rust already requires are enough.
+- **A C and C++ compiler**, for the bundled memory allocator and the LibTorch
+  bindings. Linux and macOS have one once the usual build tools are
+  installed; on Windows the MSVC build tools that Rust already requires are
+  enough.
+- **About 1 GB of free disk** for LibTorch (see below).
 
 From the project folder:
 
@@ -90,10 +92,58 @@ short. Either run them by path (`target/release/thingamaroo ...`), copy the two
 programs somewhere on your `PATH`, or install them with
 `cargo install --path crates/cli` and `cargo install --path crates/gui`.
 
+### LibTorch (on by default)
+
+The default build trains on the processor through **LibTorch**, the C++
+engine inside PyTorch. No Python is involved: the Rust code calls LibTorch's
+compiled maths routines directly. It trains about twice as fast as the
+pure-Rust backend (measured on four CPU cores, identical results):
+
+| Size, run | Pure Rust (`cpu`) | LibTorch (`libtorch`) | Speedup |
+| --- | --- | --- | --- |
+| `tiny`, 150 steps × 12 sequences | 84 s (~720 patches/s) | 39 s (~1,600 patches/s) | 2.2× |
+| `prototype`, 8 steps × 4 sequences | 77 s (~64 patches/s) | 30 s (~170 patches/s) | 2.6× |
+
+**Getting LibTorch.** The first build downloads the processor version of
+LibTorch 2.9.0 (180 MB, 786 MB unpacked) from download.pytorch.org into the
+build folder. To use a copy you already have, or if the download is blocked
+(for example behind a company proxy), download
+`libtorch-shared-with-deps-2.9.0+cpu.zip` yourself from
+<https://download.pytorch.org/libtorch/cpu/>, unpack it, and point the build
+at it:
+
+```
+export LIBTORCH=/path/to/libtorch      # Windows: set LIBTORCH=C:\path\to\libtorch
+cargo build --release
+```
+
+**Running.** On Linux and macOS the build records where LibTorch is, so the
+programs start without further setup, as long as that folder stays where it
+was. On Windows, add LibTorch's `lib` folder to `PATH` (or copy its `.dll`
+files next to the programs) before starting them.
+
+**Pure-Rust build.** To build without LibTorch (nothing to download, a single
+self-contained program, about half the training speed):
+
+```
+cargo build --release --no-default-features --features fast-allocator
+```
+
+Drop `--features fast-allocator` too if no C compiler is available; that
+halves CPU training speed again.
+
+Burn, the tensor library this project uses, has marked its LibTorch backend
+as deprecated in favour of its newer backends. It works in the Burn version
+this project pins (0.22.1); a future upgrade of Burn may mean switching the
+default back to a pure-Rust backend. Burn's suggested replacement for the
+processor (its CubeCL `cpu` backend) was tried: it needed its own 45 MB LLVM
+download, took ten minutes to build, and had not finished 10 training steps of
+`tiny` after eight minutes, so it is not used.
+
 ### Using a graphics card
 
-The default build runs on the processor, which is right for the `tiny` size and
-for trying things out. For anything larger, build with a GPU backend:
+For anything larger than `tiny`, a graphics card matters far more than the
+processor backend. Build with a GPU backend:
 
 ```
 cargo build --release -p thingamaroo-cli -p thingamaroo-gui --features gpu
@@ -101,17 +151,16 @@ cargo build --release -p thingamaroo-cli -p thingamaroo-gui --features gpu
 
 | Feature | Backend | Needs |
 | --- | --- | --- |
-| *(none)* | CPU, pure Rust | nothing extra |
+| `libtorch` *(default)* | The processor through LibTorch | the LibTorch download above |
 | `gpu` | Any graphics card through Vulkan, Metal or DirectX 12 | up-to-date graphics drivers |
 | `cuda` | NVIDIA cards through CUDA | the CUDA toolkit installed |
+| *(always)* | The processor, pure Rust | nothing extra |
 
-With a GPU feature built in, `--device auto` (the default) uses the graphics
-card when one is found and the processor otherwise. `--device cpu` forces the
-processor. A GPU build compiles many more dependencies; expect it to take
-about three times as long as the default build.
-
-To build without the bundled allocator (no C compiler needed, about half the
-CPU training speed), add `--no-default-features`.
+`--device auto` (the default) picks the fastest backend that is built in and
+has hardware: a graphics card (`cuda`, then `gpu`), then `libtorch`, then
+`cpu`. Any of them can be chosen by name with `--device`. A GPU build compiles
+many more dependencies; expect it to take about three times as long as the
+default build.
 
 ### Linux desktop libraries
 
@@ -129,7 +178,8 @@ sudo apt install libxkbcommon-x11-0
 thingamaroo sample-corpus sample.txt
 thingamaroo --brain my-brain init --preset tiny
 
-# 2. Train it. About 14 minutes on four CPU cores; Ctrl-C stops early and saves.
+# 2. Train it. Roughly 7 minutes on four CPU cores (14 with the pure-Rust build);
+#    Ctrl-C stops early and saves.
 thingamaroo --brain my-brain train --data sample.txt --steps 1500 --batch 12
 
 # 3. Look inside.
@@ -261,8 +311,9 @@ docs/          guides and references
 
 Built with [Burn](https://burn.dev) for tensors and training,
 [egui](https://github.com/emilk/egui) for the window, and
-[redb](https://github.com/cberner/redb) for the memory store. No Python and no
-PyTorch are involved.
+[redb](https://github.com/cberner/redb) for the memory store. There is no
+Python. By default, the processor maths runs on LibTorch, PyTorch's C++
+engine, called from Rust; the pure-Rust build leaves it out entirely.
 
 ## Tests
 
@@ -285,8 +336,11 @@ that this documentation covers every command, option, tab and setting.
   no graphics card to run it on. `cuda` was not built.
 - **Only Linux was tested.** The dependencies support Windows and macOS, but
   those builds were not tried.
-- **CPU training is slow** beyond the `tiny` size: about 800 patches per second
-  on four cores.
+- **CPU training is slow** beyond the `tiny` size: about 1,600 patches per
+  second for `tiny` and 170 for `prototype` on four cores with LibTorch.
+- **The LibTorch default was tested on Linux only**, with LibTorch supplied
+  through `LIBTORCH` (the automatic download was blocked by the network it was
+  built on).
 - **A correction that uses a word the model has never seen** is only partly
   learned at this size. "The cow says ribbit." came back misspelled after sleep,
   while "The cat says quack." (two known words) was learned exactly.

@@ -86,7 +86,10 @@ pub struct CommandLine {
     #[arg(long, global = true, default_value = "brain", value_name = "DIRECTORY")]
     pub brain: PathBuf,
 
-    /// Compute backend: auto, cpu, gpu or cuda.
+    /// Compute backend: auto, cpu, libtorch, gpu or cuda.
+    ///
+    /// auto picks the fastest one built in and present: a graphics card, then
+    /// libtorch (PyTorch's engine on the processor), then cpu (pure Rust).
     #[arg(long, global = true, default_value = "auto", value_name = "NAME")]
     pub device: String,
 

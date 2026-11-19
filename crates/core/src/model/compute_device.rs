@@ -14,6 +14,10 @@ pub enum DeviceChoice {
     Automatic,
     /// Pure-Rust CPU backend; always available.
     Cpu,
+    /// The processor through LibTorch, PyTorch's C++ engine (`libtorch`
+    /// feature, on by default in the applications). About twice as fast as
+    /// `Cpu` for training.
+    Libtorch,
     /// Any graphics card, through Vulkan, Metal or DirectX 12 (`gpu` feature).
     Gpu,
     /// NVIDIA graphics cards through CUDA (`cuda` feature).
@@ -22,9 +26,10 @@ pub enum DeviceChoice {
 
 impl DeviceChoice {
     /// Every choice, whether or not this build includes it.
-    pub const ALL: [DeviceChoice; 4] = [
+    pub const ALL: [DeviceChoice; 5] = [
         DeviceChoice::Automatic,
         DeviceChoice::Cpu,
+        DeviceChoice::Libtorch,
         DeviceChoice::Gpu,
         DeviceChoice::Cuda,
     ];
@@ -34,6 +39,7 @@ impl DeviceChoice {
         match self {
             DeviceChoice::Automatic => "auto",
             DeviceChoice::Cpu => "cpu",
+            DeviceChoice::Libtorch => "libtorch",
             DeviceChoice::Gpu => "gpu",
             DeviceChoice::Cuda => "cuda",
         }
@@ -51,6 +57,7 @@ impl DeviceChoice {
     pub fn is_available(self) -> bool {
         match self {
             DeviceChoice::Automatic | DeviceChoice::Cpu => true,
+            DeviceChoice::Libtorch => cfg!(feature = "libtorch"),
             DeviceChoice::Gpu => cfg!(feature = "gpu"),
             DeviceChoice::Cuda => cfg!(feature = "cuda"),
         }
@@ -79,8 +86,9 @@ pub struct ComputeDevice {
 impl ComputeDevice {
     /// Selects a device.
     ///
-    /// `Automatic` takes the fastest backend whose hardware is present and falls
-    /// back to the processor. Any other choice fails when this build does not
+    /// `Automatic` takes the fastest backend whose hardware is present: a
+    /// graphics card, then LibTorch on the processor, then the pure-Rust
+    /// processor backend. Any other choice fails when this build does not
     /// include the backend or the machine has no hardware for it.
     pub fn select(choice: DeviceChoice) -> BrainResult<Self> {
         let (choice, inference) = match choice {
@@ -97,19 +105,37 @@ impl ComputeDevice {
 
 /// Tries the accelerated backends this build includes, fastest first.
 fn select_fastest_working() -> (DeviceChoice, Device) {
-    [DeviceChoice::Cuda, DeviceChoice::Gpu]
-        .into_iter()
-        .filter(|choice| choice.is_available())
-        .find_map(|choice| create_device(choice).ok().map(|device| (choice, device)))
-        .unwrap_or((DeviceChoice::Cpu, Device::flex()))
+    [
+        DeviceChoice::Cuda,
+        DeviceChoice::Gpu,
+        DeviceChoice::Libtorch,
+    ]
+    .into_iter()
+    .filter(|choice| choice.is_available())
+    .find_map(|choice| create_device(choice).ok().map(|device| (choice, device)))
+    .unwrap_or((DeviceChoice::Cpu, Device::flex()))
 }
 
 fn create_device(choice: DeviceChoice) -> BrainResult<Device> {
     match choice {
         DeviceChoice::Cpu | DeviceChoice::Automatic => Ok(Device::flex()),
+        DeviceChoice::Libtorch => create_libtorch_device(),
         DeviceChoice::Gpu => create_gpu_device(),
         DeviceChoice::Cuda => create_cuda_device(),
     }
+}
+
+#[cfg(feature = "libtorch")]
+// Burn deprecates its LibTorch backend, but in 0.22.1 it trains about twice as
+// fast on the processor as any non-deprecated backend (see the README).
+#[allow(deprecated)]
+fn create_libtorch_device() -> BrainResult<Device> {
+    Ok(Device::libtorch())
+}
+
+#[cfg(not(feature = "libtorch"))]
+fn create_libtorch_device() -> BrainResult<Device> {
+    Err(missing_feature("libtorch"))
 }
 
 #[cfg(feature = "gpu")]
@@ -175,6 +201,28 @@ mod tests {
 
         assert_ne!(compute_device.choice, DeviceChoice::Automatic);
         assert!(compute_device.choice.is_available());
+    }
+
+    #[cfg(feature = "libtorch")]
+    #[test]
+    fn the_libtorch_backend_trains_when_built_in() {
+        let compute_device = ComputeDevice::select(DeviceChoice::Libtorch).unwrap();
+        let weights =
+            burn::tensor::Tensor::<1>::from_data([1.0, 2.0, 3.0], &compute_device.training)
+                .require_grad();
+        let gradients = weights.clone().powf_scalar(2.0).sum().backward();
+
+        let gradient =
+            crate::model::tensor_readback::read_values(weights.grad(&gradients).unwrap());
+        assert_eq!(gradient, vec![2.0, 4.0, 6.0]);
+    }
+
+    #[cfg(not(feature = "libtorch"))]
+    #[test]
+    fn a_missing_backend_explains_how_to_get_it() {
+        let error = ComputeDevice::select(DeviceChoice::Libtorch).unwrap_err();
+
+        assert!(error.to_string().contains("--features libtorch"));
     }
 
     #[test]

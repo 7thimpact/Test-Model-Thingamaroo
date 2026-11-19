@@ -75,7 +75,8 @@ impl BrainView {
                 });
             hint(
                 ui,
-                "gpu and cuda appear when the application is built with those features.",
+                "auto picks the fastest: a graphics card, then libtorch, then cpu (pure Rust). \
+                 Only backends this build includes are listed.",
             );
         });
         ui.horizontal(|ui| {

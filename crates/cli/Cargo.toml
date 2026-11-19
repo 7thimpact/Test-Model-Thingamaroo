@@ -6,18 +6,23 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+build = "../link_libtorch.rs"
 
 [[bin]]
 name = "thingamaroo"
 path = "src/main.rs"
 
 [features]
-default = ["fast-allocator"]
+default = ["fast-allocator", "libtorch"]
 # Replaces the system allocator with mimalloc, which roughly doubles CPU
 # training speed. Needs a C compiler at build time; disable it if none is available.
 fast-allocator = ["dep:mimalloc"]
 gpu = ["thingamaroo-core/gpu"]
 cuda = ["thingamaroo-core/cuda"]
+# Trains on the processor through LibTorch, PyTorch's C++ engine, about twice as
+# fast as the pure-Rust backend. Build with --no-default-features (plus
+# --features fast-allocator) for a self-contained pure-Rust program.
+libtorch = ["thingamaroo-core/libtorch", "dep:torch-sys"]
 
 [dependencies]
 thingamaroo-core.workspace = true
@@ -25,3 +30,5 @@ clap = { version = "4.6", features = ["derive"] }
 ctrlc = "3.5"
 serde_json.workspace = true
 mimalloc = { version = "0.1", optional = true }
+# Not used in code: depending on it directly lets build.rs learn where LibTorch is.
+torch-sys = { version = "0.22", optional = true }

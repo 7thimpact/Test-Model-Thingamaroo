@@ -36,7 +36,7 @@ for 1,500 steps on the built-in sample text.
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--brain <DIRECTORY>` | `brain` | The brain folder to work on. |
-| `--device <NAME>` | `auto` | Where the mathematics runs: `auto`, `cpu`, `gpu` or `cuda`. |
+| `--device <NAME>` | `auto` | Where the mathematics runs: `auto`, `cpu` (pure Rust), `libtorch` (PyTorch's C++ engine on the processor, about twice as fast as `cpu`), `gpu` or `cuda`. `auto` picks a graphics card, then `libtorch`, then `cpu`, using only backends the build includes. |
 | `--help` | | Explain the command and its options. |
 | `--version` | | Print the version. |
 
@@ -451,8 +451,9 @@ that succeeds exits with status 0. Common messages:
 | `not found: no brain at <folder>; create one first` | Run `init` first, or point `--brain` at the right folder. |
 | `invalid configuration: a brain already exists at <folder>` | `init` never overwrites a brain; choose another folder. |
 | `training corpus: ... the corpus is too small for this context size` | The text has fewer patches than one training sequence needs. |
-| `compute device: this build does not include the 'gpu' backend` | Rebuild with `--features gpu`, or use `--device cpu`. |
+| `compute device: this build does not include the 'gpu' backend` | Rebuild with `--features gpu`, or use `--device cpu`. The same message names `libtorch` for a pure-Rust build. |
 | `compute device: no graphics card was found on this machine` | Use `--device cpu` (or `auto`, which falls back by itself). |
+| `error while loading shared libraries: libtorch_cpu.so` | The program cannot find LibTorch: its folder was moved or deleted since the build. Rebuild, or add LibTorch's `lib` folder to `LD_LIBRARY_PATH` (Linux), `DYLD_LIBRARY_PATH` (macOS) or `PATH` (Windows). |
 | `episodic memory store: ... already open` | The brain is open in another application; a brain can be used by one application at a time. |
 
 ## Stopping a long command

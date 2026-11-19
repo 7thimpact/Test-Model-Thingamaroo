@@ -1403,6 +1403,8 @@ dependencies = [
  "burn-flex",
  "burn-fusion",
  "burn-std",
+ "burn-tch",
+ "tch",
 ]
 
 [[package]]
@@ -8173,6 +8175,7 @@ dependencies = [
  "mimalloc",
  "serde_json",
  "thingamaroo-core",
+ "torch-sys",
 ]
 
 [[package]]
@@ -8185,6 +8188,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "torch-sys",
 ]
 
 [[package]]
@@ -8198,6 +8202,7 @@ dependencies = [
  "rfd",
  "serde_json",
  "thingamaroo-core",
+ "torch-sys",
 ]
 
 [[package]]

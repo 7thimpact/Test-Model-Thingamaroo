@@ -4,6 +4,11 @@
 //! truth for what each setting does. This script copies them into a generated
 //! table so the command-line and desktop applications explain every setting
 //! with exactly the words written next to its definition.
+//!
+//! It also lets the library's test programs find LibTorch (`libtorch` feature).
+
+#[path = "../link_libtorch.rs"]
+mod link_libtorch;
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -25,6 +30,7 @@ struct DocumentedField {
 fn main() {
     println!("cargo:rerun-if-changed={SETTINGS_SOURCE_PATH}");
     println!("cargo:rerun-if-changed=build.rs");
+    link_libtorch::main();
 
     let source = std::fs::read_to_string(SETTINGS_SOURCE_PATH)
         .expect("the settings source file should be readable");
